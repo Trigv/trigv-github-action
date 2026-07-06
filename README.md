@@ -38,6 +38,8 @@ Trigv delivers alerts to your phone; notification title and body stay on your de
 
 When `description` is omitted, the action fills in repository, workflow, ref, commit, and a link to the workflow run.
 
+Pin the action to an exact release tag (e.g. `@v1.0.0`) so workflow behavior stays predictable.
+
 ## Inputs
 
 | Input | Required | Default | Description |
