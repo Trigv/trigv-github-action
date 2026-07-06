@@ -1,0 +1,60 @@
+name: Trigv
+description: Send a native push notification via Trigv from GitHub Actions.
+author: Trigv
+branding:
+  icon: bell
+  color: red
+
+inputs:
+  api-key:
+    description: Trigv workspace API key (trgv_…). Store as a repository secret, e.g. TRIGV_API_KEY.
+    required: true
+  channel:
+    description: Trigv channel slug devices subscribe to.
+    required: false
+    default: ci
+  title:
+    description: Notification title shown on the device.
+    required: true
+  description:
+    description: Optional notification body. When omitted, GitHub context (repo, workflow, run URL) is used.
+    required: false
+    default: ''
+  level:
+    description: Alert severity — info, success, warning, or error.
+    required: false
+    default: info
+  event-type:
+    description: Optional event_type metadata (e.g. ci.failed, deploy.success).
+    required: false
+    default: ''
+  delivery-urgency:
+    description: standard or time_sensitive (iOS time-sensitive delivery when allowed).
+    required: false
+    default: standard
+  image-url:
+    description: Optional HTTPS image URL attached to the notification.
+    required: false
+    default: ''
+  idempotency-key:
+    description: Optional idempotency key to avoid duplicate events on workflow retries.
+    required: false
+    default: ''
+  fail-on-error:
+    description: Fail the workflow step when the Trigv API returns an error.
+    required: false
+    default: 'false'
+
+outputs:
+  ok:
+    description: true when Trigv accepted the event.
+  status:
+    description: HTTP status code from the Trigv API.
+  event-public-id:
+    description: Trigv event public_id when returned by the API.
+  response:
+    description: JSON string of the Trigv API response body.
+
+runs:
+  using: node20
+  main: dist/index.js

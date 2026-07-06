@@ -1,0 +1,36 @@
+{
+  "name": "trigv-github-action",
+  "version": "1.0.0",
+  "description": "Official Trigv GitHub Action — send push notifications from your workflows.",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "ncc build src/index.js --license licenses.txt --source-map",
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Trigv/trigv-github-action.git"
+  },
+  "keywords": [
+    "trigv",
+    "push-notifications",
+    "github-actions",
+    "ci",
+    "deployments",
+    "alerts"
+  ],
+  "author": "Trigv",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Trigv/trigv-github-action/issues"
+  },
+  "homepage": "https://trigv.com/docs/learn/github-actions/",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.1"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.3"
+  }
+}
