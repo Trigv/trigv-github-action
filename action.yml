@@ -12,7 +12,7 @@ inputs:
   channel:
     description: Trigv channel slug devices subscribe to.
     required: false
-    default: ci
+    default: general
   title:
     description: Notification title shown on the device.
     required: true

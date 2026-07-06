@@ -45,7 +45,7 @@ export function defaultDescription(context) {
 }
 
 export function buildPayload(getInput, context) {
-  const channel = trimOrNull(getInput('channel')) ?? 'ci';
+  const channel = trimOrNull(getInput('channel')) ?? 'general';
   const title = trimOrNull(getInput('title'));
 
   if (!title) {

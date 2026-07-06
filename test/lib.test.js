@@ -31,6 +31,15 @@ test('defaultDescription uses GitHub context fields', () => {
   assert.match(description, /actions\/runs\/123/);
 });
 
+test('buildPayload defaults channel to general', () => {
+  const payload = buildPayload(
+    (name) => ({ title: 'Test' }[name] ?? ''),
+    {},
+  );
+
+  assert.equal(payload.channel, 'general');
+});
+
 test('buildPayload maps Trigv ingest fields', () => {
   const payload = buildPayload(
     (name) => ({
