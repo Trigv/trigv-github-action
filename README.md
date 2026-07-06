@@ -13,7 +13,7 @@ Trigv delivers alerts to your phone; notification title and body stay on your de
 ```yaml
 - name: Notify Trigv on failure
   if: failure()
-  uses: Trigv/trigv-github-action@v1
+  uses: Trigv/trigv-github-action@v1.0.0
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     channel: ci
@@ -27,7 +27,7 @@ Trigv delivers alerts to your phone; notification title and body stay on your de
 ```yaml
 - name: Notify Trigv on success
   if: success()
-  uses: Trigv/trigv-github-action@v1
+  uses: Trigv/trigv-github-action@v1.0.0
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     channel: ci
