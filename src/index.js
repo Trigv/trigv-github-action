@@ -1,105 +1,6 @@
 import * as core from '@actions/core';
 import github from '@actions/github';
-
-const API_URL = 'https://api.trigv.com/api/v1/events';
-const LEVELS = new Set(['info', 'success', 'warning', 'error']);
-const URGENCIES = new Set(['standard', 'time_sensitive']);
-
-function trimOrNull(value) {
-  const trimmed = String(value ?? '').trim();
-
-  return trimmed === '' ? null : trimmed;
-}
-
-function defaultDescription() {
-  const { repository, workflow, serverUrl, runId, refName, sha } = github.context;
-
-  const repo = repository?.full_name ?? 'unknown repository';
-  const workflowName = workflow ?? 'workflow';
-  const runUrl = serverUrl && repository?.full_name
-    ? `${serverUrl}/${repository.full_name}/actions/runs/${runId}`
-    : null;
-
-  const parts = [
-    `${repo} · ${workflowName}`,
-    refName ? `ref ${refName}` : null,
-    sha ? sha.slice(0, 7) : null,
-    runUrl ? runUrl : null,
-  ].filter(Boolean);
-
-  return parts.join('\n');
-}
-
-function buildPayload() {
-  const channel = trimOrNull(core.getInput('channel')) ?? 'ci';
-  const title = trimOrNull(core.getInput('title'));
-
-  if (!title) {
-    throw new Error('Input "title" is required.');
-  }
-
-  const level = trimOrNull(core.getInput('level')) ?? 'info';
-  if (!LEVELS.has(level)) {
-    throw new Error(`Input "level" must be one of: ${[...LEVELS].join(', ')}`);
-  }
-
-  const deliveryUrgency = trimOrNull(core.getInput('delivery-urgency')) ?? 'standard';
-  if (!URGENCIES.has(deliveryUrgency)) {
-    throw new Error(`Input "delivery-urgency" must be one of: ${[...URGENCIES].join(', ')}`);
-  }
-
-  const description = trimOrNull(core.getInput('description')) ?? defaultDescription();
-
-  const payload = {
-    channel,
-    title,
-    description,
-    level,
-    delivery_urgency: deliveryUrgency,
-  };
-
-  const eventType = trimOrNull(core.getInput('event-type'));
-  if (eventType) {
-    payload.event_type = eventType;
-  }
-
-  const imageUrl = trimOrNull(core.getInput('image-url'));
-  if (imageUrl) {
-    payload.image_url = imageUrl;
-  }
-
-  const idempotencyKey = trimOrNull(core.getInput('idempotency-key'));
-  if (idempotencyKey) {
-    payload.idempotency_key = idempotencyKey;
-  }
-
-  return payload;
-}
-
-async function sendEvent(apiKey, payload) {
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const text = await response.text();
-  let body = null;
-
-  if (text !== '') {
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = { raw: text };
-    }
-  }
-
-  return { response, body };
-}
+import { buildPayload, parseApiError, sendEvent, trimOrNull } from './lib.js';
 
 async function run() {
   const apiKey = trimOrNull(core.getInput('api-key'));
@@ -108,7 +9,7 @@ async function run() {
   }
 
   const failOnError = core.getBooleanInput('fail-on-error');
-  const payload = buildPayload();
+  const payload = buildPayload((name) => core.getInput(name), github.context);
 
   core.debug(`Trigv payload: ${JSON.stringify(payload)}`);
 
@@ -129,7 +30,7 @@ async function run() {
     return;
   }
 
-  const message = body?.message ?? body?.error ?? `Trigv API returned HTTP ${response.status}.`;
+  const message = parseApiError(body, response.status);
   core.error(message);
 
   if (failOnError) {

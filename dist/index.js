@@ -31689,11 +31689,12 @@ module.exports = parseParams
 /******/ 
 /************************************************************************/
 var __webpack_exports__ = {};
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(7484);
-/* harmony import */ var _actions_github__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(3228);
 
-
-
+// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
+var core = __nccwpck_require__(7484);
+// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
+var github = __nccwpck_require__(3228);
+;// CONCATENATED MODULE: ./src/lib.js
 const API_URL = 'https://api.trigv.com/api/v1/events';
 const LEVELS = new Set(['info', 'success', 'warning', 'error']);
 const URGENCIES = new Set(['standard', 'time_sensitive']);
@@ -31704,44 +31705,61 @@ function trimOrNull(value) {
   return trimmed === '' ? null : trimmed;
 }
 
-function defaultDescription() {
-  const { repository, workflow, serverUrl, runId, refName, sha } = _actions_github__WEBPACK_IMPORTED_MODULE_1__.context;
+function formatRef(ref) {
+  if (!ref) {
+    return null;
+  }
 
-  const repo = repository?.full_name ?? 'unknown repository';
+  if (ref.startsWith('refs/heads/')) {
+    return ref.slice('refs/heads/'.length);
+  }
+
+  if (ref.startsWith('refs/tags/')) {
+    return ref.slice('refs/tags/'.length);
+  }
+
+  return ref;
+}
+
+function defaultDescription(context) {
+  const { repo, ref, workflow, serverUrl, runId, sha } = context;
+
+  const fullName = repo?.owner && repo?.repo ? `${repo.owner}/${repo.repo}` : 'unknown repository';
   const workflowName = workflow ?? 'workflow';
-  const runUrl = serverUrl && repository?.full_name
-    ? `${serverUrl}/${repository.full_name}/actions/runs/${runId}`
+  const runUrl = serverUrl && repo?.owner && repo?.repo
+    ? `${serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${runId}`
     : null;
+  const refLabel = formatRef(ref);
 
   const parts = [
-    `${repo} · ${workflowName}`,
-    refName ? `ref ${refName}` : null,
+    `${fullName} · ${workflowName}`,
+    refLabel ? `ref ${refLabel}` : null,
     sha ? sha.slice(0, 7) : null,
-    runUrl ? runUrl : null,
+    runUrl,
   ].filter(Boolean);
 
   return parts.join('\n');
 }
 
-function buildPayload() {
-  const channel = trimOrNull(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('channel')) ?? 'ci';
-  const title = trimOrNull(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('title'));
+function buildPayload(getInput, context) {
+  const channel = trimOrNull(getInput('channel')) ?? 'ci';
+  const title = trimOrNull(getInput('title'));
 
   if (!title) {
     throw new Error('Input "title" is required.');
   }
 
-  const level = trimOrNull(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('level')) ?? 'info';
+  const level = trimOrNull(getInput('level')) ?? 'info';
   if (!LEVELS.has(level)) {
     throw new Error(`Input "level" must be one of: ${[...LEVELS].join(', ')}`);
   }
 
-  const deliveryUrgency = trimOrNull(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('delivery-urgency')) ?? 'standard';
+  const deliveryUrgency = trimOrNull(getInput('delivery-urgency')) ?? 'standard';
   if (!URGENCIES.has(deliveryUrgency)) {
     throw new Error(`Input "delivery-urgency" must be one of: ${[...URGENCIES].join(', ')}`);
   }
 
-  const description = trimOrNull(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('description')) ?? defaultDescription();
+  const description = trimOrNull(getInput('description')) ?? defaultDescription(context);
 
   const payload = {
     channel,
@@ -31751,17 +31769,17 @@ function buildPayload() {
     delivery_urgency: deliveryUrgency,
   };
 
-  const eventType = trimOrNull(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('event-type'));
+  const eventType = trimOrNull(getInput('event-type'));
   if (eventType) {
     payload.event_type = eventType;
   }
 
-  const imageUrl = trimOrNull(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('image-url'));
+  const imageUrl = trimOrNull(getInput('image-url'));
   if (imageUrl) {
     payload.image_url = imageUrl;
   }
 
-  const idempotencyKey = trimOrNull(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('idempotency-key'));
+  const idempotencyKey = trimOrNull(getInput('idempotency-key'));
   if (idempotencyKey) {
     payload.idempotency_key = idempotencyKey;
   }
@@ -31769,8 +31787,20 @@ function buildPayload() {
   return payload;
 }
 
-async function sendEvent(apiKey, payload) {
-  const response = await fetch(API_URL, {
+function parseApiError(body, status) {
+  if (body?.message) {
+    return body.message;
+  }
+
+  if (typeof body?.error === 'string') {
+    return body.error;
+  }
+
+  return `Trigv API returned HTTP ${status}.`;
+}
+
+async function sendEvent(apiKey, payload, fetchImpl = fetch) {
+  const response = await fetchImpl(API_URL, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -31794,36 +31824,41 @@ async function sendEvent(apiKey, payload) {
   return { response, body };
 }
 
+;// CONCATENATED MODULE: ./src/index.js
+
+
+
+
 async function run() {
-  const apiKey = trimOrNull(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('api-key'));
+  const apiKey = trimOrNull(core.getInput('api-key'));
   if (!apiKey) {
     throw new Error('Input "api-key" is required.');
   }
 
-  const failOnError = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput('fail-on-error');
-  const payload = buildPayload();
+  const failOnError = core.getBooleanInput('fail-on-error');
+  const payload = buildPayload((name) => core.getInput(name), github.context);
 
-  _actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(`Trigv payload: ${JSON.stringify(payload)}`);
+  core.debug(`Trigv payload: ${JSON.stringify(payload)}`);
 
   const { response, body } = await sendEvent(apiKey, payload);
   const ok = response.status === 202 || response.status === 200;
 
-  _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('ok', String(ok));
-  _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('status', String(response.status));
-  _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('response', JSON.stringify(body ?? {}));
+  core.setOutput('ok', String(ok));
+  core.setOutput('status', String(response.status));
+  core.setOutput('response', JSON.stringify(body ?? {}));
 
   const eventPublicId = body?.event?.public_id ?? '';
   if (eventPublicId) {
-    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('event-public-id', eventPublicId);
+    core.setOutput('event-public-id', eventPublicId);
   }
 
   if (ok) {
-    _actions_core__WEBPACK_IMPORTED_MODULE_0__.info(`Trigv accepted the event (HTTP ${response.status}).`);
+    core.info(`Trigv accepted the event (HTTP ${response.status}).`);
     return;
   }
 
-  const message = body?.message ?? body?.error ?? `Trigv API returned HTTP ${response.status}.`;
-  _actions_core__WEBPACK_IMPORTED_MODULE_0__.error(message);
+  const message = parseApiError(body, response.status);
+  core.error(message);
 
   if (failOnError) {
     throw new Error(message);
@@ -31831,7 +31866,7 @@ async function run() {
 }
 
 run().catch((error) => {
-  _actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed(error.message);
+  core.setFailed(error.message);
 });
 
 
