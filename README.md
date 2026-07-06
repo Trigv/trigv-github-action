@@ -70,15 +70,6 @@ Pin the action to an exact release tag (e.g. `@v1.0.0`) so workflow behavior sta
 - [API errors & rate limits](https://trigv.com/docs/errors/)
 - [OpenAPI spec](https://api.trigv.com/openapi.yaml)
 
-## Development
-
-```bash
-npm install
-npm run build   # bundles src/index.js → dist/index.js
-```
-
-Commit `dist/` before tagging a release — GitHub Actions runs the bundled file.
-
 ## License
 
 MIT — see [LICENSE](./LICENSE).
