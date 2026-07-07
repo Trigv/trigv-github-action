@@ -36,9 +36,23 @@ Omit `channel` to use `general`, or set a slug (e.g. `github`) for a dedicated c
     event-type: ci.success
 ```
 
-When `description` is omitted, the action fills in repository, workflow, ref, commit, and a link to the workflow run.
+When `description` is omitted, the action fills in repository, workflow, ref, and commit. The workflow run URL is sent in the dedicated `url` field (see below).
 
 Pin the action to an exact release tag (e.g. `@v1.0.1`) so workflow behavior stays predictable.
+
+## Custom destination URL
+
+By default, the action sends the current GitHub Actions run URL as `url` so the mobile app can open the workflow from the notification. Override it when you want a different link:
+
+```yaml
+- name: Notify Trigv with deployment link
+  uses: Trigv/trigv-github-action@v1.0.1
+  with:
+    api-key: ${{ secrets.TRIGV_API_KEY }}
+    title: Production deploy complete
+    level: success
+    url: https://example.com/deployments/42
+```
 
 ## Inputs
 
@@ -52,6 +66,7 @@ Pin the action to an exact release tag (e.g. `@v1.0.1`) so workflow behavior sta
 | `event-type` | no | — | Optional metadata (e.g. `ci.failed`) |
 | `delivery-urgency` | no | `standard` | `standard` or `time_sensitive` |
 | `image-url` | no | — | Optional HTTPS image URL |
+| `url` | no | workflow run URL | Destination URL for the notification; defaults to the current GitHub Actions run URL when omitted |
 | `idempotency-key` | no | — | Avoid duplicate events on retries |
 | `fail-on-error` | no | `false` | Fail the step when the API errors |
 

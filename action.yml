@@ -17,7 +17,7 @@ inputs:
     description: Notification title shown on the device.
     required: true
   description:
-    description: Optional notification body. When omitted, GitHub context (repo, workflow, run URL) is used.
+    description: Optional notification body. When omitted, GitHub context (repo, workflow, ref, commit) is used.
     required: false
     default: ''
   level:
@@ -34,6 +34,10 @@ inputs:
     default: standard
   image-url:
     description: Optional HTTPS image URL attached to the notification.
+    required: false
+    default: ''
+  url:
+    description: Optional destination URL. Defaults to the current GitHub Actions run URL when omitted.
     required: false
     default: ''
   idempotency-key:

@@ -8,6 +8,20 @@ export function trimOrNull(value) {
   return trimmed === '' ? null : trimmed;
 }
 
+export function codePointLength(value) {
+  return [...value].length;
+}
+
+export function workflowRunUrl(context) {
+  const { repo, serverUrl, runId } = context;
+
+  if (!serverUrl || !repo?.owner || !repo?.repo || runId == null || runId === '') {
+    return null;
+  }
+
+  return `${serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${runId}`;
+}
+
 export function formatRef(ref) {
   if (!ref) {
     return null;
@@ -25,23 +39,41 @@ export function formatRef(ref) {
 }
 
 export function defaultDescription(context) {
-  const { repo, ref, workflow, serverUrl, runId, sha } = context;
+  const { repo, ref, workflow, sha } = context;
 
   const fullName = repo?.owner && repo?.repo ? `${repo.owner}/${repo.repo}` : 'unknown repository';
   const workflowName = workflow ?? 'workflow';
-  const runUrl = serverUrl && repo?.owner && repo?.repo
-    ? `${serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${runId}`
-    : null;
   const refLabel = formatRef(ref);
 
   const parts = [
     `${fullName} · ${workflowName}`,
     refLabel ? `ref ${refLabel}` : null,
     sha ? sha.slice(0, 7) : null,
-    runUrl,
   ].filter(Boolean);
 
   return parts.join('\n');
+}
+
+export function validateUrlInput(fieldName, url) {
+  if (codePointLength(url) > 2048) {
+    throw new Error(`Input "${fieldName}" must be at most 2048 characters.`);
+  }
+
+  try {
+    new URL(url);
+  } catch {
+    throw new Error(`Input "${fieldName}" must be a valid URL.`);
+  }
+}
+
+export function resolveEventUrl(getInput, context) {
+  const explicitUrl = trimOrNull(getInput('url'));
+  if (explicitUrl) {
+    validateUrlInput('url', explicitUrl);
+    return explicitUrl;
+  }
+
+  return workflowRunUrl(context);
 }
 
 export function buildPayload(getInput, context) {
@@ -85,6 +117,11 @@ export function buildPayload(getInput, context) {
   const idempotencyKey = trimOrNull(getInput('idempotency-key'));
   if (idempotencyKey) {
     payload.idempotency_key = idempotencyKey;
+  }
+
+  const eventUrl = resolveEventUrl(getInput, context);
+  if (eventUrl) {
+    payload.url = eventUrl;
   }
 
   return payload;
