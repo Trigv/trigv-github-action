@@ -8,8 +8,11 @@ import {
   formatRef,
   parseApiError,
   requestIdFrom,
+  parseRetryAfterHeader,
   resolveEventUrl,
+  retryBackoffMs,
   sendEvent,
+  sendWithRetry,
   workflowRunUrl,
 } from '../src/lib.js';
 
@@ -298,4 +301,137 @@ test('describeNetworkError gives short messages without the request details', ()
   const refused = new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
   assert.equal(describeNetworkError(refused), 'Could not reach Trigv: ENOTFOUND');
   assert.equal(describeNetworkError(new Error('boom')), 'Could not reach Trigv: boom');
+});
+
+const fakeResponse = (status, headers = {}, body = {}) => ({
+  status,
+  headers: new Headers(headers),
+  text: async () => JSON.stringify(body),
+});
+
+function sequence(...responses) {
+  const calls = [];
+  const fetchImpl = async () => {
+    calls.push(1);
+    return responses[Math.min(calls.length - 1, responses.length - 1)];
+  };
+
+  return { fetchImpl, calls };
+}
+
+function retryOptions(fetchImpl) {
+  const waits = [];
+  const logs = [];
+
+  return {
+    waits,
+    logs,
+    options: { fetchImpl, sleepImpl: async (ms) => { waits.push(ms); }, log: (line) => logs.push(line), random: () => 0 },
+  };
+}
+
+const keyed = { channel: 'ci', title: 'Hi', idempotency_key: 'run-1' };
+
+test('retries a 503 with a key and succeeds on the next 202', async () => {
+  const { fetchImpl, calls } = sequence(fakeResponse(503, { 'Retry-After': '3' }), fakeResponse(202));
+  const { options, waits, logs } = retryOptions(fetchImpl);
+  const { response } = await sendWithRetry('k', keyed, options);
+
+  assert.equal(response.status, 202);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(waits, [3000]);
+  assert.deepEqual(logs, ['Trigv returned HTTP 503, retrying in 3s (attempt 2 of 3).']);
+});
+
+test('retries a 409 with a key and accepts the 200 duplicate', async () => {
+  const { fetchImpl } = sequence(fakeResponse(409, { 'Retry-After': '2' }), fakeResponse(200, {}, { message: 'already stored' }));
+  const { options, waits } = retryOptions(fetchImpl);
+  const { response } = await sendWithRetry('k', keyed, options);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(waits, [2000]);
+});
+
+test('a Retry-After longer than 30 seconds fails fast without sleeping', async () => {
+  const { fetchImpl, calls } = sequence(fakeResponse(429, { 'Retry-After': '31' }));
+  const { options, waits } = retryOptions(fetchImpl);
+  const { response } = await sendWithRetry('k', keyed, options);
+
+  assert.equal(response.status, 429);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(waits, []);
+});
+
+test('a Retry-After of exactly 30 seconds is still honored', async () => {
+  const { fetchImpl } = sequence(fakeResponse(429, { 'Retry-After': '30' }), fakeResponse(202));
+  const { options, waits } = retryOptions(fetchImpl);
+  await sendWithRetry('k', keyed, options);
+
+  assert.deepEqual(waits, [30000]);
+});
+
+test('never retries without an idempotency key', async () => {
+  for (const status of [409, 429, 503]) {
+    const { fetchImpl, calls } = sequence(fakeResponse(status, { 'Retry-After': '1' }), fakeResponse(202));
+    const { options, waits } = retryOptions(fetchImpl);
+    const { response } = await sendWithRetry('k', { channel: 'ci', title: 'Hi' }, options);
+
+    assert.equal(response.status, status);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(waits, []);
+  }
+});
+
+test('never retries other 4xx or 5xx statuses', async () => {
+  for (const status of [400, 401, 404, 422, 500]) {
+    const { fetchImpl, calls } = sequence(fakeResponse(status), fakeResponse(202));
+    const { options } = retryOptions(fetchImpl);
+    const { response } = await sendWithRetry('k', keyed, options);
+
+    assert.equal(response.status, status);
+    assert.equal(calls.length, 1);
+  }
+});
+
+test('attempts are bounded at 3 and backoff doubles when Retry-After is missing', async () => {
+  const { fetchImpl, calls } = sequence(fakeResponse(503));
+  const { options, waits, logs } = retryOptions(fetchImpl);
+  const { response } = await sendWithRetry('k', keyed, options);
+
+  assert.equal(response.status, 503);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(waits, [500, 1000]);
+  assert.equal(logs.length, 2);
+  assert.doesNotMatch(logs.join(' '), /run-1/);
+});
+
+test('backoff jitter stays under 251 ms', () => {
+  assert.equal(retryBackoffMs(0, () => 0.999), 750);
+  assert.equal(retryBackoffMs(1, () => 0), 1000);
+});
+
+test('Retry-After accepts seconds and HTTP-date', async () => {
+  const now = Date.parse('2026-11-01T10:00:00Z');
+
+  assert.equal(parseRetryAfterHeader('2', now), 2000);
+  assert.equal(parseRetryAfterHeader('1.2', now), 1200);
+  assert.equal(parseRetryAfterHeader('Sun, 01 Nov 2026 10:00:05 GMT', now), 5000);
+  assert.equal(parseRetryAfterHeader('Sun, 01 Nov 2026 09:00:00 GMT', now), undefined);
+  assert.equal(parseRetryAfterHeader('soon', now), undefined);
+  assert.equal(parseRetryAfterHeader(null, now), undefined);
+
+  const { fetchImpl } = sequence(fakeResponse(503, { 'Retry-After': 'Sun, 01 Nov 2026 10:00:05 GMT' }), fakeResponse(202));
+  const { options, waits } = retryOptions(fetchImpl);
+  await sendWithRetry('k', keyed, { ...options, now: () => now });
+
+  assert.deepEqual(waits, [5000]);
+});
+
+test('a network error is not retried', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; throw new TypeError('fetch failed'); };
+  const { options } = retryOptions(fetchImpl);
+
+  await assert.rejects(sendWithRetry('k', keyed, options), TypeError);
+  assert.equal(calls, 1);
 });

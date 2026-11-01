@@ -15,7 +15,7 @@ Trigv delivers alerts to your phone; notification title and body stay on your de
 ```yaml
 - name: Notify Trigv on failure
   if: failure()
-  uses: Trigv/trigv-github-action@v1.2.1
+  uses: Trigv/trigv-github-action@v1.3.0
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     title: Workflow failed
@@ -30,7 +30,7 @@ Omit `channel` to use `general`, or set a slug (e.g. `github`) for a dedicated c
 ```yaml
 - name: Notify Trigv on success
   if: success()
-  uses: Trigv/trigv-github-action@v1.2.1
+  uses: Trigv/trigv-github-action@v1.3.0
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     title: Deploy OK
@@ -40,7 +40,7 @@ Omit `channel` to use `general`, or set a slug (e.g. `github`) for a dedicated c
 
 When `description` is omitted, the action fills in repository, workflow, ref, and commit. The workflow run URL is sent in the dedicated `url` field (see below).
 
-Pin the action to an exact release tag (e.g. `@v1.2.1`) so workflow behavior stays predictable.
+Pin the action to an exact release tag (e.g. `@v1.3.0`) so workflow behavior stays predictable.
 
 ## Custom destination URL
 
@@ -48,12 +48,13 @@ By default, the action sends the current GitHub Actions run URL as `url` so the 
 
 ```yaml
 - name: Notify Trigv with deployment link
-  uses: Trigv/trigv-github-action@v1.2.1
+  uses: Trigv/trigv-github-action@v1.3.0
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     title: Production deploy complete
     level: success
     url: https://example.com/deployments/42
+    idempotency-key: deploy-${{ github.run_id }}-${{ github.run_attempt }}
 ```
 
 ## Inputs
@@ -69,7 +70,7 @@ By default, the action sends the current GitHub Actions run URL as `url` so the 
 | `delivery-urgency` | no | `standard` | `standard` or `time_sensitive` |
 | `image-url` | no | none | Optional image URL (max 2048 characters) |
 | `url` | no | workflow run URL | Destination URL for the notification; defaults to the current GitHub Actions run URL when omitted |
-| `idempotency-key` | no | none | Avoid duplicate events on retries (max 190 characters). A repeated key returns HTTP 200, message `already stored` |
+| `idempotency-key` | no | none | Avoid duplicate events (max 190 characters). A repeated key returns HTTP 200, message `already stored`. Also lets the action retry safely, see below |
 | `fail-on-error` | no | `false` | Fail the step when the API errors |
 
 ## Outputs
@@ -85,6 +86,19 @@ By default, the action sends the current GitHub Actions run URL as `url` so the 
 ## Errors and rate limits
 
 The rate limit is 60 requests per minute per workspace. Error messages from the API are shown in the step log with the request id, for example `Too many requests. Try again in N seconds. (request id 01J…)`. Other statuses: 409 (another request is delivering the same `idempotency-key`), 422 (invalid input), 503 (push unavailable). If Trigv cannot be reached, or does not answer within 30 seconds, the action reports that as an error too. With `fail-on-error: false` the step stays green and the `ok` and `status` outputs (`ok` is `false` and `status` is empty for network errors) tell you what happened.
+
+## Retries and idempotency-key
+
+Set `idempotency-key` (for example `deploy-${{ github.run_id }}-${{ github.run_attempt }}`) and the action retries safely when Trigv answers 429 (rate limit), 503 (push unavailable) or 409 (another request is delivering the same key). A repeat with the same key never creates a second alert.
+
+- It retries at most 2 times (3 attempts in total).
+- It waits for the `Retry-After` time Trigv sends. Without that header it waits about 0.5 seconds, then about 1 second.
+- If `Retry-After` is longer than 30 seconds, it does not wait. The step reports the real API error at once.
+- Other errors (for example 401 or 422) are never retried, and neither are network errors or timeouts.
+- Each retry is one log line, like `Trigv returned HTTP 503, retrying in 3s (attempt 2 of 3).` The key is never logged.
+- After the last attempt, `fail-on-error` decides if the step fails.
+
+Without `idempotency-key` the action never retries, because a retry could send the same alert twice. A 429 or 503 then adds the line `Set idempotency-key to let this action retry safely.` to the error message.
 
 ## Docs
 

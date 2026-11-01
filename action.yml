@@ -41,7 +41,7 @@ inputs:
     required: false
     default: ''
   idempotency-key:
-    description: Optional idempotency key (max 190 characters) to avoid duplicate events on workflow retries. A repeated key returns HTTP 200 with message already stored.
+    description: Optional idempotency key (max 190 characters) to avoid duplicate events. A repeated key returns HTTP 200 with message already stored. When set, the action also retries HTTP 409, 429 and 503 up to 2 times; without it the action never retries.
     required: false
     default: ''
   fail-on-error:

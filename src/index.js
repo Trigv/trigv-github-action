@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { buildPayload, describeNetworkError, parseApiError, requestIdFrom, sendEvent, trimOrNull } from './lib.js';
+import { buildPayload, describeNetworkError, parseApiError, requestIdFrom, RETRY_HINT, sendWithRetry, trimOrNull } from './lib.js';
 import { getContext } from './context.js';
 
 async function run() {
@@ -13,11 +13,9 @@ async function run() {
   const failOnError = core.getBooleanInput('fail-on-error');
   const payload = buildPayload((name) => core.getInput(name), getContext());
 
-  core.debug(`Trigv payload: ${JSON.stringify(payload)}`);
-
   let result;
   try {
-    result = await sendEvent(apiKey, payload);
+    result = await sendWithRetry(apiKey, payload, { log: (line) => core.info(line) });
   } catch (error) {
     const message = describeNetworkError(error);
     core.setOutput('ok', 'false');
@@ -51,7 +49,10 @@ async function run() {
     return;
   }
 
-  const message = parseApiError(body, response.status, requestId);
+  let message = parseApiError(body, response.status, requestId);
+  if (!payload.idempotency_key && (response.status === 429 || response.status === 503)) {
+    message += `\n${RETRY_HINT}`;
+  }
   if (failOnError) {
     throw new Error(message);
   }

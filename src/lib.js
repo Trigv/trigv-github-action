@@ -1,6 +1,10 @@
 export const API_URL = 'https://api.trigv.com/v1/events';
 export const LEVELS = new Set(['info', 'success', 'warning', 'error']);
 export const REQUEST_TIMEOUT_MS = 30000;
+export const MAX_RETRIES = 2;
+export const MAX_RETRY_WAIT_MS = 30000;
+export const RETRYABLE_STATUSES = new Set([409, 429, 503]);
+export const RETRY_HINT = 'Set idempotency-key to let this action retry safely.';
 export const URGENCIES = new Set(['standard', 'time_sensitive']);
 
 export function trimOrNull(value) {
@@ -184,4 +188,64 @@ export async function sendEvent(apiKey, payload, fetchImpl = fetch) {
   }
 
   return { response, body };
+}
+
+// Retry-After as seconds (whole or fractional) or an HTTP-date. Returns milliseconds, or undefined.
+export function parseRetryAfterHeader(value, now = Date.now()) {
+  const trimmed = trimOrNull(value);
+  if (trimmed === null) {
+    return undefined;
+  }
+
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    const ms = Math.ceil(Number.parseFloat(trimmed) * 1000);
+
+    return Number.isFinite(ms) ? ms : undefined;
+  }
+
+  const retryAt = Date.parse(trimmed);
+  if (Number.isNaN(retryAt) || retryAt < now) {
+    return undefined;
+  }
+
+  return retryAt - now;
+}
+
+export function retryBackoffMs(attempt, random = Math.random) {
+  return 500 * 2 ** attempt + Math.floor(random() * 251);
+}
+
+export function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Sends the event. Retries 409, 429 and 503 only when the payload has an idempotency_key,
+// because a retry without a key could create a duplicate alert. Network errors are not retried.
+export async function sendWithRetry(apiKey, payload, options = {}) {
+  const {
+    fetchImpl = fetch,
+    sleepImpl = sleep,
+    log = () => {},
+    now = Date.now,
+    random = Math.random,
+  } = options;
+  const canRetry = Boolean(payload.idempotency_key);
+
+  for (let attempt = 0; ; attempt++) {
+    const result = await sendEvent(apiKey, payload, fetchImpl);
+    const status = result.response.status;
+
+    if (!canRetry || !RETRYABLE_STATUSES.has(status) || attempt >= MAX_RETRIES) {
+      return result;
+    }
+
+    const retryAfterMs = parseRetryAfterHeader(result.response.headers?.get?.('Retry-After'), now());
+    if (retryAfterMs !== undefined && retryAfterMs > MAX_RETRY_WAIT_MS) {
+      return result;
+    }
+
+    const waitMs = retryAfterMs ?? retryBackoffMs(attempt, random);
+    log(`Trigv returned HTTP ${status}, retrying in ${Math.ceil(waitMs / 1000)}s (attempt ${attempt + 2} of ${MAX_RETRIES + 1}).`);
+    await sleepImpl(waitMs);
+  }
 }

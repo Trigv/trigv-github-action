@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-01
+
+### Added
+
+- Safe retry when `idempotency-key` is set: HTTP 429, 503 and 409 are retried up to 2 times (3 attempts), waiting for `Retry-After` (seconds or HTTP-date, or about 0.5 s then 1 s without it). If `Retry-After` is longer than 30 seconds the action fails at once with the real API error.
+- Without `idempotency-key` the action never retries. A 429 or 503 error now adds the line `Set idempotency-key to let this action retry safely.`
+
 ## [1.2.1] - 2026-11-01
 
 ### Changed
