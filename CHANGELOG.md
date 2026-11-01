@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- No monthly event cap 429 any more; nothing in the action handled it specially.
+- Monthly event cap handling. The API no longer returns a monthly cap 429.
 
 ## [1.1.0]
 

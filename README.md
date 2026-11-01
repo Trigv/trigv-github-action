@@ -58,16 +58,16 @@ By default, the action sends the current GitHub Actions run URL as `url` so the 
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `api-key` | yes | — | Trigv workspace API key (`trgv_…`) |
+| `api-key` | yes | none | Trigv workspace API key (`trgv_…`) |
 | `channel` | no | `general` | Channel slug (max 120 characters) |
-| `title` | yes | — | Notification title (max 255 characters) |
+| `title` | yes | none | Notification title (max 255 characters) |
 | `description` | no | GitHub context | Notification body (max 1000 characters) |
 | `level` | no | `info` | `info`, `success`, `warning`, or `error` |
-| `event-type` | no | — | Optional metadata (e.g. `ci.failed`) |
+| `event-type` | no | none | Optional metadata (e.g. `ci.failed`) |
 | `delivery-urgency` | no | `standard` | `standard` or `time_sensitive` |
-| `image-url` | no | — | Optional image URL (max 2048 characters) |
+| `image-url` | no | none | Optional image URL (max 2048 characters) |
 | `url` | no | workflow run URL | Destination URL for the notification; defaults to the current GitHub Actions run URL when omitted |
-| `idempotency-key` | no | — | Avoid duplicate events on retries (max 190 characters). A repeated key returns HTTP 200, message `already stored` |
+| `idempotency-key` | no | none | Avoid duplicate events on retries (max 190 characters). A repeated key returns HTTP 200, message `already stored` |
 | `fail-on-error` | no | `false` | Fail the step when the API errors |
 
 ## Outputs
@@ -82,7 +82,7 @@ By default, the action sends the current GitHub Actions run URL as `url` so the 
 
 ## Errors and rate limits
 
-The rate limit is 60 requests per minute per workspace. Error messages from the API are shown in the step log with the request id, for example `Too many requests. Try again in 7 seconds. (request id 01J…)`. Other statuses: 409 (another request is delivering the same `idempotency-key`), 422 (invalid input), 503 (push unavailable). With `fail-on-error: false` the step stays green and the `ok` and `status` outputs tell you what happened.
+The rate limit is 60 requests per minute per workspace. Error messages from the API are shown in the step log with the request id, for example `Too many requests. Try again in N seconds. (request id 01J…)`. Other statuses: 409 (another request is delivering the same `idempotency-key`), 422 (invalid input), 503 (push unavailable). With `fail-on-error: false` the step stays green and the `ok` and `status` outputs tell you what happened.
 
 ## Docs
 
