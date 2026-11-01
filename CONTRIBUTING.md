@@ -22,6 +22,8 @@ npm run build   # bundles src/index.js → dist/index.js
 npm test
 ```
 
+CI runs the tests and the build on every push to `main` and every pull request. It fails if `dist/` is not up to date, so always commit the rebuilt `dist/`.
+
 ## Release
 
 1. Change `src/` as needed.
