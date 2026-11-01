@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 import github from '@actions/github';
-import { buildPayload, parseApiError, sendEvent, trimOrNull } from './lib.js';
+import { buildPayload, parseApiError, requestIdFrom, sendEvent, trimOrNull } from './lib.js';
 
 async function run() {
   const apiKey = trimOrNull(core.getInput('api-key'));
@@ -20,6 +20,12 @@ async function run() {
   core.setOutput('status', String(response.status));
   core.setOutput('response', JSON.stringify(body ?? {}));
 
+  const requestId = requestIdFrom(response);
+  if (requestId) {
+    core.setOutput('request-id', requestId);
+    core.debug(`Trigv X-Request-ID: ${requestId}`);
+  }
+
   const eventPublicId = body?.event?.public_id ?? '';
   if (eventPublicId) {
     core.setOutput('event-public-id', eventPublicId);
@@ -30,7 +36,7 @@ async function run() {
     return;
   }
 
-  const message = parseApiError(body, response.status);
+  const message = parseApiError(body, response.status, requestId);
   core.error(message);
 
   if (failOnError) {

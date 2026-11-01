@@ -2,7 +2,7 @@
 
 Official GitHub Action for [Trigv](https://trigv.com) — send a native push notification from your workflows with one step.
 
-Trigv delivers alerts to your phone; notification title and body stay on your device. This action calls `POST https://api.trigv.com/api/v1/events`.
+Trigv delivers alerts to your phone; notification title and body stay on your device. This action calls `POST https://api.trigv.com/v1/events`.
 
 ## Quick start
 
@@ -13,7 +13,7 @@ Trigv delivers alerts to your phone; notification title and body stay on your de
 ```yaml
 - name: Notify Trigv on failure
   if: failure()
-  uses: Trigv/trigv-github-action@v1.1.0
+  uses: Trigv/trigv-github-action@v1.2.0
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     title: Workflow failed
@@ -28,7 +28,7 @@ Omit `channel` to use `general`, or set a slug (e.g. `github`) for a dedicated c
 ```yaml
 - name: Notify Trigv on success
   if: success()
-  uses: Trigv/trigv-github-action@v1.1.0
+  uses: Trigv/trigv-github-action@v1.2.0
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     title: Deploy OK
@@ -38,7 +38,7 @@ Omit `channel` to use `general`, or set a slug (e.g. `github`) for a dedicated c
 
 When `description` is omitted, the action fills in repository, workflow, ref, and commit. The workflow run URL is sent in the dedicated `url` field (see below).
 
-Pin the action to an exact release tag (e.g. `@v1.1.0`) so workflow behavior stays predictable.
+Pin the action to an exact release tag (e.g. `@v1.2.0`) so workflow behavior stays predictable.
 
 ## Custom destination URL
 
@@ -46,7 +46,7 @@ By default, the action sends the current GitHub Actions run URL as `url` so the 
 
 ```yaml
 - name: Notify Trigv with deployment link
-  uses: Trigv/trigv-github-action@v1.1.0
+  uses: Trigv/trigv-github-action@v1.2.0
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     title: Production deploy complete
@@ -59,25 +59,30 @@ By default, the action sends the current GitHub Actions run URL as `url` so the 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `api-key` | yes | — | Trigv workspace API key (`trgv_…`) |
-| `channel` | no | `general` | Channel slug |
-| `title` | yes | — | Notification title |
-| `description` | no | GitHub context | Notification body |
+| `channel` | no | `general` | Channel slug (max 120 characters) |
+| `title` | yes | — | Notification title (max 255 characters) |
+| `description` | no | GitHub context | Notification body (max 1000 characters) |
 | `level` | no | `info` | `info`, `success`, `warning`, or `error` |
 | `event-type` | no | — | Optional metadata (e.g. `ci.failed`) |
 | `delivery-urgency` | no | `standard` | `standard` or `time_sensitive` |
-| `image-url` | no | — | Optional HTTPS image URL |
+| `image-url` | no | — | Optional image URL (max 2048 characters) |
 | `url` | no | workflow run URL | Destination URL for the notification; defaults to the current GitHub Actions run URL when omitted |
-| `idempotency-key` | no | — | Avoid duplicate events on retries |
+| `idempotency-key` | no | — | Avoid duplicate events on retries (max 190 characters). A repeated key returns HTTP 200, message `already stored` |
 | `fail-on-error` | no | `false` | Fail the step when the API errors |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `ok` | `true` when Trigv returns HTTP 200 or 202 |
+| `ok` | `true` when Trigv returns HTTP 202, or HTTP 200 (`already stored`) |
 | `status` | HTTP status code |
 | `event-public-id` | Trigv event `public_id` when present |
+| `request-id` | `X-Request-ID` response header; quote it when you contact support |
 | `response` | JSON string of the API response |
+
+## Errors and rate limits
+
+The rate limit is 60 requests per minute per workspace. Error messages from the API are shown in the step log with the request id, for example `Too many requests. Try again in 7 seconds. (request id 01J…)`. Other statuses: 409 (another request is delivering the same `idempotency-key`), 422 (invalid input), 503 (push unavailable). With `fail-on-error: false` the step stays green and the `ok` and `status` outputs tell you what happened.
 
 ## Docs
 

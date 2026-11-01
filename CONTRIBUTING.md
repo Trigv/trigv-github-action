@@ -27,7 +27,7 @@ npm test
 1. Change `src/` as needed.
 2. Run `npm test` and `npm run build`.
 3. Commit `src/` and `dist/` together.
-4. Tag an exact version (e.g. `v1.0.1`) and push the tag.
+4. Add a `CHANGELOG.md` entry and bump `package.json`, then tag an exact version (e.g. `v1.2.0`) and push the tag.
 5. Create/update the GitHub release; Marketplace uses the repo README.
 
-Pin consumers to exact tags (e.g. `@v1.0.0`) — do not rely on floating major tags.
+Pin consumers to exact tags (e.g. `@v1.2.0`) — do not rely on floating major tags.

@@ -10,14 +10,14 @@ inputs:
     description: Trigv workspace API key (trgv_…). Store as a repository secret, e.g. TRIGV_API_KEY.
     required: true
   channel:
-    description: Trigv channel slug devices subscribe to.
+    description: Trigv channel slug devices subscribe to (max 120 characters).
     required: false
     default: general
   title:
-    description: Notification title shown on the device.
+    description: Notification title shown on the device (max 255 characters).
     required: true
   description:
-    description: Optional notification body. When omitted, GitHub context (repo, workflow, ref, commit) is used.
+    description: Optional notification body (max 1000 characters). When omitted, GitHub context (repo, workflow, ref, commit) is used.
     required: false
     default: ''
   level:
@@ -33,7 +33,7 @@ inputs:
     required: false
     default: standard
   image-url:
-    description: Optional HTTPS image URL attached to the notification.
+    description: Optional image URL (max 2048 characters) attached to the notification.
     required: false
     default: ''
   url:
@@ -41,7 +41,7 @@ inputs:
     required: false
     default: ''
   idempotency-key:
-    description: Optional idempotency key to avoid duplicate events on workflow retries.
+    description: Optional idempotency key (max 190 characters) to avoid duplicate events on workflow retries. A repeated key returns HTTP 200 with message already stored.
     required: false
     default: ''
   fail-on-error:
@@ -51,11 +51,13 @@ inputs:
 
 outputs:
   ok:
-    description: true when Trigv accepted the event.
+    description: true when Trigv accepted the event (HTTP 202, or HTTP 200 for an already stored idempotency-key).
   status:
     description: HTTP status code from the Trigv API.
   event-public-id:
     description: Trigv event public_id when returned by the API.
+  request-id:
+    description: X-Request-ID response header. Quote it when you contact support.
   response:
     description: JSON string of the Trigv API response body.
 

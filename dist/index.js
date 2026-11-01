@@ -31695,7 +31695,7 @@ var core = __nccwpck_require__(7484);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(3228);
 ;// CONCATENATED MODULE: ./src/lib.js
-const API_URL = 'https://api.trigv.com/api/v1/events';
+const API_URL = 'https://api.trigv.com/v1/events';
 const LEVELS = new Set(['info', 'success', 'warning', 'error']);
 const URGENCIES = new Set(['standard', 'time_sensitive']);
 
@@ -31824,7 +31824,17 @@ function buildPayload(getInput, context) {
   return payload;
 }
 
-function parseApiError(body, status) {
+function requestIdFrom(response) {
+  return trimOrNull(response?.headers?.get?.('X-Request-ID'));
+}
+
+function parseApiError(body, status, requestId = null) {
+  const message = apiErrorMessage(body, status);
+
+  return requestId ? `${message} (request id ${requestId})` : message;
+}
+
+function apiErrorMessage(body, status) {
   if (body?.message) {
     return body.message;
   }
@@ -31884,6 +31894,12 @@ async function run() {
   core.setOutput('status', String(response.status));
   core.setOutput('response', JSON.stringify(body ?? {}));
 
+  const requestId = requestIdFrom(response);
+  if (requestId) {
+    core.setOutput('request-id', requestId);
+    core.debug(`Trigv X-Request-ID: ${requestId}`);
+  }
+
   const eventPublicId = body?.event?.public_id ?? '';
   if (eventPublicId) {
     core.setOutput('event-public-id', eventPublicId);
@@ -31894,7 +31910,7 @@ async function run() {
     return;
   }
 
-  const message = parseApiError(body, response.status);
+  const message = parseApiError(body, response.status, requestId);
   core.error(message);
 
   if (failOnError) {

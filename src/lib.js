@@ -1,4 +1,4 @@
-export const API_URL = 'https://api.trigv.com/api/v1/events';
+export const API_URL = 'https://api.trigv.com/v1/events';
 export const LEVELS = new Set(['info', 'success', 'warning', 'error']);
 export const URGENCIES = new Set(['standard', 'time_sensitive']);
 
@@ -127,7 +127,17 @@ export function buildPayload(getInput, context) {
   return payload;
 }
 
-export function parseApiError(body, status) {
+export function requestIdFrom(response) {
+  return trimOrNull(response?.headers?.get?.('X-Request-ID'));
+}
+
+export function parseApiError(body, status, requestId = null) {
+  const message = apiErrorMessage(body, status);
+
+  return requestId ? `${message} (request id ${requestId})` : message;
+}
+
+function apiErrorMessage(body, status) {
   if (body?.message) {
     return body.message;
   }

@@ -6,6 +6,7 @@ import {
   defaultDescription,
   formatRef,
   parseApiError,
+  requestIdFrom,
   resolveEventUrl,
   sendEvent,
   workflowRunUrl,
@@ -201,7 +202,7 @@ test('sendEvent posts to Trigv ingest endpoint', async () => {
 
     return {
       status: 202,
-      text: async () => JSON.stringify({ event: { public_id: 'evt_test' } }),
+      text: async () => JSON.stringify({ event: { public_id: '01JXXXXXXXXXXXXXXXXXXXXXXX' } }),
     };
   };
 
@@ -214,6 +215,7 @@ test('sendEvent posts to Trigv ingest endpoint', async () => {
   }, fetchImpl);
 
   assert.equal(captured.url, API_URL);
+  assert.equal(captured.url, 'https://api.trigv.com/v1/events');
   assert.equal(captured.options.method, 'POST');
   assert.match(captured.options.headers.Authorization, /^Bearer trgv_test_key$/);
   assert.deepEqual(JSON.parse(captured.options.body), {
@@ -224,4 +226,54 @@ test('sendEvent posts to Trigv ingest endpoint', async () => {
     delivery_urgency: 'standard',
   });
   assert.equal(result.response.status, 202);
+});
+
+test('API_URL uses the /v1/events path on api.trigv.com', () => {
+  assert.equal(API_URL, 'https://api.trigv.com/v1/events');
+});
+
+test('parseApiError keeps messages for 409, 422, 429 and 503', () => {
+  assert.equal(
+    parseApiError({ message: 'This event is being delivered by another request. Retry with the same idempotency_key.' }, 409),
+    'This event is being delivered by another request. Retry with the same idempotency_key.',
+  );
+  assert.equal(
+    parseApiError({ message: 'The channel field is required.', errors: { channel: ['x'] } }, 422),
+    'The channel field is required.',
+  );
+  assert.equal(
+    parseApiError({ message: 'Too many requests. Try again in 7 seconds.' }, 429),
+    'Too many requests. Try again in 7 seconds.',
+  );
+  assert.equal(
+    parseApiError({ message: 'Push delivery is temporarily unavailable. Retry with the same idempotency_key.' }, 503),
+    'Push delivery is temporarily unavailable. Retry with the same idempotency_key.',
+  );
+});
+
+test('parseApiError appends the request id', () => {
+  assert.equal(
+    parseApiError({ message: 'Invalid API key.' }, 401, '01JREQXXXXXXXXXXXXXXXXXXXX'),
+    'Invalid API key. (request id 01JREQXXXXXXXXXXXXXXXXXXXX)',
+  );
+});
+
+test('requestIdFrom reads X-Request-ID', () => {
+  const response = { headers: new Headers({ 'X-Request-ID': '01JREQXXXXXXXXXXXXXXXXXXXX' }) };
+  assert.equal(requestIdFrom(response), '01JREQXXXXXXXXXXXXXXXXXXXX');
+  assert.equal(requestIdFrom({ headers: new Headers() }), null);
+  assert.equal(requestIdFrom({}), null);
+});
+
+test('sendEvent returns the response so 200 already stored counts as accepted', async () => {
+  const fetchImpl = async () => ({
+    status: 200,
+    headers: new Headers({ 'X-Request-ID': '01JREQXXXXXXXXXXXXXXXXXXXX' }),
+    text: async () => JSON.stringify({ event: { public_id: '01JXXXXXXXXXXXXXXXXXXXXXXX' }, message: 'already stored' }),
+  });
+
+  const result = await sendEvent('trgv_test_key', { channel: 'ci', title: 'Hello' }, fetchImpl);
+
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.message, 'already stored');
 });
