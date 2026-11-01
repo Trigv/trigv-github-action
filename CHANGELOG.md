@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `public_id` values are 26 character ULIDs (no `evt_` prefix).
 - Rate limit is 60 requests per minute per workspace.
 - HTTP 200 (`already stored`) still counts as accepted (`ok` is `true`).
+- Changed: README and package metadata link to trigv.com docs
 
 ### Security
 

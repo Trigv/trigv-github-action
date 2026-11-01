@@ -1,5 +1,7 @@
 # Trigv GitHub Action
 
+[Docs](https://trigv.com/docs/learn/github-actions/) | [API reference](https://trigv.com/docs/api/) | [Free tools](https://trigv.com/tools/) | [Get an API key](https://app.trigv.com/register)
+
 Official GitHub Action for [Trigv](https://trigv.com), send a native push notification from your workflows with one step.
 
 Trigv delivers alerts to your phone; notification title and body stay on your device. This action calls `POST https://api.trigv.com/v1/events`.
