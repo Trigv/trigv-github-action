@@ -15,7 +15,7 @@ Trigv delivers alerts to your phone; notification title and body stay on your de
 ```yaml
 - name: Notify Trigv on failure
   if: failure()
-  uses: Trigv/trigv-github-action@v1.2.0
+  uses: Trigv/trigv-github-action@v1.2.1
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     title: Workflow failed
@@ -30,7 +30,7 @@ Omit `channel` to use `general`, or set a slug (e.g. `github`) for a dedicated c
 ```yaml
 - name: Notify Trigv on success
   if: success()
-  uses: Trigv/trigv-github-action@v1.2.0
+  uses: Trigv/trigv-github-action@v1.2.1
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     title: Deploy OK
@@ -40,7 +40,7 @@ Omit `channel` to use `general`, or set a slug (e.g. `github`) for a dedicated c
 
 When `description` is omitted, the action fills in repository, workflow, ref, and commit. The workflow run URL is sent in the dedicated `url` field (see below).
 
-Pin the action to an exact release tag (e.g. `@v1.2.0`) so workflow behavior stays predictable.
+Pin the action to an exact release tag (e.g. `@v1.2.1`) so workflow behavior stays predictable.
 
 ## Custom destination URL
 
@@ -48,7 +48,7 @@ By default, the action sends the current GitHub Actions run URL as `url` so the 
 
 ```yaml
 - name: Notify Trigv with deployment link
-  uses: Trigv/trigv-github-action@v1.2.0
+  uses: Trigv/trigv-github-action@v1.2.1
   with:
     api-key: ${{ secrets.TRIGV_API_KEY }}
     title: Production deploy complete
