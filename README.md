@@ -1,6 +1,6 @@
 # Trigv GitHub Action
 
-Official GitHub Action for [Trigv](https://trigv.com) — send a native push notification from your workflows with one step.
+Official GitHub Action for [Trigv](https://trigv.com), send a native push notification from your workflows with one step.
 
 Trigv delivers alerts to your phone; notification title and body stay on your device. This action calls `POST https://api.trigv.com/v1/events`.
 
@@ -92,4 +92,4 @@ The rate limit is 60 requests per minute per workspace. Error messages from the 
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT, see [LICENSE](./LICENSE).
