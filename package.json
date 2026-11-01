@@ -27,8 +27,7 @@
   },
   "homepage": "https://trigv.com/docs/learn/github-actions/",
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.1"
+    "@actions/core": "^3.0.1"
   },
   "devDependencies": {
     "@vercel/ncc": "^0.38.3"

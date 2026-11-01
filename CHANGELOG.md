@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rate limit is 60 requests per minute per workspace.
 - HTTP 200 (`already stored`) still counts as accepted (`ok` is `true`).
 
+### Security
+
+- Removed the `@actions/github` dependency (the action only needs a few `GITHUB_*` variables, now read directly) and updated `@actions/core` to 3.x. `npm audit --omit=dev` is now clean.
+
 ### Added
 
 - `request-id` output and request id in error messages (from the `X-Request-ID` header).

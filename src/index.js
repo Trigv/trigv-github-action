@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
-import github from '@actions/github';
 import { buildPayload, describeNetworkError, parseApiError, requestIdFrom, sendEvent, trimOrNull } from './lib.js';
+import { getContext } from './context.js';
 
 async function run() {
   const apiKey = trimOrNull(core.getInput('api-key'));
@@ -11,7 +11,7 @@ async function run() {
   core.setSecret(apiKey);
 
   const failOnError = core.getBooleanInput('fail-on-error');
-  const payload = buildPayload((name) => core.getInput(name), github.context);
+  const payload = buildPayload((name) => core.getInput(name), getContext());
 
   core.debug(`Trigv payload: ${JSON.stringify(payload)}`);
 
