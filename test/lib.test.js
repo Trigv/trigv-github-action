@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   API_URL,
   buildPayload,
+  describeNetworkError,
   defaultDescription,
   formatRef,
   parseApiError,
@@ -276,4 +277,25 @@ test('sendEvent returns the response so 200 already stored counts as accepted', 
 
   assert.equal(result.response.status, 200);
   assert.equal(result.body.message, 'already stored');
+});
+
+test('sendEvent sends a timeout signal', async () => {
+  let signal = null;
+  const fetchImpl = async (url, options) => {
+    signal = options.signal;
+    return { status: 202, text: async () => '' };
+  };
+
+  await sendEvent('trgv_test_key', { channel: 'ci', title: 'Hello' }, fetchImpl);
+
+  assert.ok(signal instanceof AbortSignal);
+});
+
+test('describeNetworkError gives short messages without the request details', () => {
+  const timeout = Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+  assert.match(describeNetworkError(timeout), /did not respond within 30 seconds/);
+
+  const refused = new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
+  assert.equal(describeNetworkError(refused), 'Could not reach Trigv: ENOTFOUND');
+  assert.equal(describeNetworkError(new Error('boom')), 'Could not reach Trigv: boom');
 });

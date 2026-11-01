@@ -82,7 +82,7 @@ By default, the action sends the current GitHub Actions run URL as `url` so the 
 
 ## Errors and rate limits
 
-The rate limit is 60 requests per minute per workspace. Error messages from the API are shown in the step log with the request id, for example `Too many requests. Try again in N seconds. (request id 01J…)`. Other statuses: 409 (another request is delivering the same `idempotency-key`), 422 (invalid input), 503 (push unavailable). With `fail-on-error: false` the step stays green and the `ok` and `status` outputs tell you what happened.
+The rate limit is 60 requests per minute per workspace. Error messages from the API are shown in the step log with the request id, for example `Too many requests. Try again in N seconds. (request id 01J…)`. Other statuses: 409 (another request is delivering the same `idempotency-key`), 422 (invalid input), 503 (push unavailable). If Trigv cannot be reached, or does not answer within 30 seconds, the action reports that as an error too. With `fail-on-error: false` the step stays green and the `ok` and `status` outputs (`ok` is `false` and `status` is empty for network errors) tell you what happened.
 
 ## Docs
 

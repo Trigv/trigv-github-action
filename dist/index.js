@@ -31697,6 +31697,7 @@ var github = __nccwpck_require__(3228);
 ;// CONCATENATED MODULE: ./src/lib.js
 const API_URL = 'https://api.trigv.com/v1/events';
 const LEVELS = new Set(['info', 'success', 'warning', 'error']);
+const REQUEST_TIMEOUT_MS = 30000;
 const URGENCIES = new Set(['standard', 'time_sensitive']);
 
 function trimOrNull(value) {
@@ -31846,6 +31847,16 @@ function apiErrorMessage(body, status) {
   return `Trigv API returned HTTP ${status}.`;
 }
 
+function describeNetworkError(error) {
+  if (error?.name === 'TimeoutError') {
+    return `Trigv did not respond within ${REQUEST_TIMEOUT_MS / 1000} seconds.`;
+  }
+
+  const reason = error?.cause?.code ?? error?.cause?.message ?? error?.message ?? 'unknown error';
+
+  return `Could not reach Trigv: ${reason}`;
+}
+
 async function sendEvent(apiKey, payload, fetchImpl = fetch) {
   const response = await fetchImpl(API_URL, {
     method: 'POST',
@@ -31855,6 +31866,7 @@ async function sendEvent(apiKey, payload, fetchImpl = fetch) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   const text = await response.text();
@@ -31882,12 +31894,27 @@ async function run() {
     throw new Error('Input "api-key" is required.');
   }
 
+  core.setSecret(apiKey);
+
   const failOnError = core.getBooleanInput('fail-on-error');
   const payload = buildPayload((name) => core.getInput(name), github.context);
 
   core.debug(`Trigv payload: ${JSON.stringify(payload)}`);
 
-  const { response, body } = await sendEvent(apiKey, payload);
+  let result;
+  try {
+    result = await sendEvent(apiKey, payload);
+  } catch (error) {
+    const message = describeNetworkError(error);
+    core.setOutput('ok', 'false');
+    if (failOnError) {
+      throw new Error(message);
+    }
+    core.error(message);
+    return;
+  }
+
+  const { response, body } = result;
   const ok = response.status === 202 || response.status === 200;
 
   core.setOutput('ok', String(ok));
@@ -31911,11 +31938,11 @@ async function run() {
   }
 
   const message = parseApiError(body, response.status, requestId);
-  core.error(message);
-
   if (failOnError) {
     throw new Error(message);
   }
+
+  core.error(message);
 }
 
 run().catch((error) => {

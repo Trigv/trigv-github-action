@@ -1,5 +1,6 @@
 export const API_URL = 'https://api.trigv.com/v1/events';
 export const LEVELS = new Set(['info', 'success', 'warning', 'error']);
+export const REQUEST_TIMEOUT_MS = 30000;
 export const URGENCIES = new Set(['standard', 'time_sensitive']);
 
 export function trimOrNull(value) {
@@ -149,6 +150,16 @@ function apiErrorMessage(body, status) {
   return `Trigv API returned HTTP ${status}.`;
 }
 
+export function describeNetworkError(error) {
+  if (error?.name === 'TimeoutError') {
+    return `Trigv did not respond within ${REQUEST_TIMEOUT_MS / 1000} seconds.`;
+  }
+
+  const reason = error?.cause?.code ?? error?.cause?.message ?? error?.message ?? 'unknown error';
+
+  return `Could not reach Trigv: ${reason}`;
+}
+
 export async function sendEvent(apiKey, payload, fetchImpl = fetch) {
   const response = await fetchImpl(API_URL, {
     method: 'POST',
@@ -158,6 +169,7 @@ export async function sendEvent(apiKey, payload, fetchImpl = fetch) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   const text = await response.text();

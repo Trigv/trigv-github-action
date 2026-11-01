@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `request-id` output and request id in error messages (from the `X-Request-ID` header).
+- 30 second request timeout. A network error or timeout now respects `fail-on-error` instead of always failing the step.
 - Docs for 409, 422, 429 and 503 responses.
 
 ### Removed

@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 import github from '@actions/github';
-import { buildPayload, parseApiError, requestIdFrom, sendEvent, trimOrNull } from './lib.js';
+import { buildPayload, describeNetworkError, parseApiError, requestIdFrom, sendEvent, trimOrNull } from './lib.js';
 
 async function run() {
   const apiKey = trimOrNull(core.getInput('api-key'));
@@ -8,12 +8,27 @@ async function run() {
     throw new Error('Input "api-key" is required.');
   }
 
+  core.setSecret(apiKey);
+
   const failOnError = core.getBooleanInput('fail-on-error');
   const payload = buildPayload((name) => core.getInput(name), github.context);
 
   core.debug(`Trigv payload: ${JSON.stringify(payload)}`);
 
-  const { response, body } = await sendEvent(apiKey, payload);
+  let result;
+  try {
+    result = await sendEvent(apiKey, payload);
+  } catch (error) {
+    const message = describeNetworkError(error);
+    core.setOutput('ok', 'false');
+    if (failOnError) {
+      throw new Error(message);
+    }
+    core.error(message);
+    return;
+  }
+
+  const { response, body } = result;
   const ok = response.status === 202 || response.status === 200;
 
   core.setOutput('ok', String(ok));
@@ -37,11 +52,11 @@ async function run() {
   }
 
   const message = parseApiError(body, response.status, requestId);
-  core.error(message);
-
   if (failOnError) {
     throw new Error(message);
   }
+
+  core.error(message);
 }
 
 run().catch((error) => {
